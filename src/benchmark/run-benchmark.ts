@@ -251,45 +251,18 @@ function printComparison(standard: BenchmarkResult, variable: BenchmarkResult) {
   const varResponseLen = variable.turns.reduce((sum, t) => sum + t.responseLength, 0);
   
   const metrics = [
-    {
-      name: 'Response Time (ms)',
-      std: standard.totals.responseTimeMs,
-      var: variable.totals.responseTimeMs,
-      label: 'faster',
-    },
-    {
-      name: 'Response Length',
-      std: stdResponseLen,
-      var: varResponseLen,
-      label: 'shorter',
-    },
-    {
-      name: 'Total Tokens',
-      std: standard.totals.totalTokens,
-      var: variable.totals.totalTokens,
-      label: 'fewer',
-    },
+    { name: 'Response Time (ms)', std: standard.totals.responseTimeMs, var: variable.totals.responseTimeMs },
+    { name: 'Response Length', std: stdResponseLen, var: varResponseLen },
+    { name: 'Total Tokens', std: standard.totals.totalTokens, var: variable.totals.totalTokens },
   ];
-
+  
   for (const m of metrics) {
-    let improvementLabel = 'n/a';
-    if (m.std > 0 && m.var >= 0) {
-      const pct = ((m.std - m.var) / m.std) * 100;
-      const absPct = Math.abs(pct).toFixed(1);
-
-      if (pct > 0) {
-        // Variable is better (lower) than standard
-        improvementLabel = `${absPct}% ${m.label}`;
-      } else if (pct < 0) {
-        // Variable is worse (higher) than standard
-        improvementLabel = `${absPct}% worse`;
-      } else {
-        improvementLabel = '0.0%';
-      }
-    }
-
+    const improvement = m.std > 0 ? ((m.std - m.var) / m.std * 100).toFixed(1) : '0.0';
+    const sign = parseFloat(improvement) >= 0 ? '-' : '+';
+    const absImprovement = Math.abs(parseFloat(improvement)).toFixed(1);
+    
     console.log(
-      `│ ${m.name.padEnd(19)} │ ${String(m.std).padStart(12)} │ ${String(m.var).padStart(12)} │ ${improvementLabel.padStart(11)} │`,
+      `│ ${m.name.padEnd(19)} │ ${String(m.std).padStart(12)} │ ${String(m.var).padStart(12)} │ ${(sign + absImprovement + '%').padStart(11)} │`
     );
   }
   

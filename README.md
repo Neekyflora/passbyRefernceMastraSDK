@@ -5,15 +5,12 @@ A pattern for making multi-turn AI agents **faster** and **cheaper** by letting 
 ---
 
 ## The Problem
-
 When an agent uses tools across multiple turns, it often ends up doing redundant work:
+1. **Step 1** – The user asks a question. The agent calls a tool, gets back a big chunk of data (say, 50 customer records)
 
-1. **Turn 1** – The user asks a question. The agent calls a tool, gets back a big chunk of data (say, 50 customer records), reads through it, and writes a summary for the user.
-
-2. **Turn 2** – The user asks a follow-up about the same data. The agent now has to:
-   - Refer back to the original tool output embedded in the message history.
-   - Re-process it to answer the new question.
-   - **Re-write** parts of that data again so the next tool (or the user) can see the relevant pieces.
+2. **Step 2** – The agent now can either pass this data to a tool for further analysis or to the user if thet asked for it
+    - Re-write Issue now the agent has to remember the whole json and either write it again as a tool input or steam it to the user.
+    - This leads to a lot of time and token waste,
 
 The tool output is already present in the history; the waste comes from the model having to **re-author and re-paste** large structures every time it wants to pass that data along. That costs tokens and time.
 
@@ -140,28 +137,24 @@ npx tsx src/benchmark/run-benchmark.ts variable-once
 
 Results are saved to `src/benchmark/results/` as JSON files.
 
----
-
-### Benchmark Result
+### Sample Benchmark Result (Scenario 1)
 
 **Scenario:** Customer Analytics – Spend in One Region  
 3 turns: initial cohort fetch + two follow-ups on the same cohort.
 
-**Totals:**
+| Metric              | Standard     | Variable-Reuse | Improvement |
+|---------------------|--------------|----------------|------------:|
+| Response Time (ms)  | 263,137      | 18,868         |      -92.8% |
+| Response Length     | 4,769 chars  | 539 chars      |      -88.7% |
+| Total Tokens        | 79,440       | 14,004         |      -82.4% |
 
-| Metric         | Standard  | Variable-Reuse | Savings          |
-|----------------|-----------|----------------|------------------|
-| Time (ms)      | 263,137   | 18,868         | 92.8% faster     |
-| Total tokens   | 79,440    | 14,004         | 82.4% fewer      |
-| Response chars | 4,769     | 539            | 88.7% shorter    |
+**Estimated cost (GPT-4o-mini pricing):**
 
-**Estimated cost (GPT‑4o‑mini):**
+- Standard: `$0.017342`
+- Variable-reuse: `$0.002230`
+- Savings: `87.1%` on this scenario alone
 
-- Standard: `$0.017342`  
-- Variable‑reuse: `$0.002230`  
-- **Cost savings:** ~87.1% on this scenario
-
-These numbers come directly from running:
+All of this comes from a single command:
 
 ```bash
 npx tsx src/benchmark/run-benchmark.ts
