@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tool Variable Benchmark – Standard vs Variable-Reuse Agent</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: dark light;
+      --bg: #0f172a;
+      --bg-alt: #020617;
+      --card: #020617;
+      --border: #1f2937;
+      --text: #e5e7eb;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.1);
+      --danger: #f97373;
+      --success: #4ade80;
+      --muted: #9ca3af;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1e293b, #020617 60%);
+      color: var(--text);
+    }
+    .shell {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin: 0 0 0.4rem;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .header {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+    }
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      font-size: 0.75rem;
+    }
+    .badge {
+      border-radius: 999px;
+      padding: 4px 10px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+    .layout {
+      display: grid;
+      gap: 16px;
+    }
+    @media (min-width: 900px) {
+      .layout {
+        grid-template-columns: 280px 1fr;
+        align-items: flex-start;
+      }
+    }
+    .panel {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      padding: 14px 16px;
+      box-shadow: 0 18px 38px rgba(0, 0, 0, 0.45);
+    }
+    .panel h2 {
+      font-size: 1rem;
+      margin: 0 0 8px;
+    }
+    .panel small {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+    select {
+      width: 100%;
+      background: var(--bg-alt);
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,0.5);
+      padding: 6px 10px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    .scenario-messages {
+      margin-top: 10px;
+      padding-left: 0;
+      list-style: decimal;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .scenario-messages li {
+      margin: 2px 0;
+    }
+    .cards {
+      display: grid;
+      gap: 10px;
+    }
+    @media (min-width: 640px) {
+      .cards {
+        grid-template-columns: repeat(3, minmax(0,1fr));
+      }
+    }
+    .card {
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.1), rgba(15,23,42,0.98));
+    }
+    .card h3 {
+      font-size: 0.9rem;
+      margin: 0 0 4px;
+    }
+    .metric-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .metric-value {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    .metric-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .metric-good {
+      color: var(--success);
+    }
+    .metric-bad {
+      color: var(--danger);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.8rem;
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+    }
+    th {
+      background: rgba(15, 23, 42, 0.98);
+      text-align: left;
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.78rem;
+    }
+    tr:nth-child(even) td {
+      background: rgba(15, 23, 42, 0.7);
+    }
+    .mono {
+      font-family: var(--mono);
+    }
+    .pill {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.4);
+    }
+    details {
+      margin-top: 16px;
+    }
+    summary {
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--accent);
+    }
+    pre {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,0.3);
+      overflow: auto;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .turn-block {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(31, 41, 55, 0.8);
+    }
+    .turn-heading {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .conv-grid {
+      display: grid;
+      gap: 8px;
+    }
+    @media (min-width: 900px) {
+      .conv-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    .agent-col {
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.05), rgba(15,23,42,0.98));
+      padding: 8px 9px;
+      font-size: 0.78rem;
+    }
+    .agent-label {
+      font-weight: 500;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .agent-label span {
+      color: var(--muted);
+      font-size: 0.72rem;
+    }
+    .agent-msg {
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+    .agent-response {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-family: var(--mono);
+      white-space: pre-wrap;
+    }
+    .tool-list {
+      margin-top: 4px;
+      border-top: 1px dashed rgba(55, 65, 81, 0.9);
+      padding-top: 4px;
+    }
+    .tool-list-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .tool-item {
+      margin: 2px 0;
+    }
+    .tool-name {
+      font-weight: 500;
+      font-size: 0.75rem;
+    }
+    .tool-meta {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="header">
+      <h1>Tool Variable Benchmark</h1>
+      <div class="sub">
+        Standard vs Variable-Reuse Agent on synthetic customer analytics tools.
+      </div>
+      <div class="badge-row">
+        <span class="badge">
+          <span class="badge-dot"></span>
+          Mastra agents · GPT‑4o‑mini · streaming with provider token usage
+        </span>
+        <span id="runTimestamp" class="badge">
+          <span class="badge-dot" style="background:#22c55e;"></span>
+          <span>Last run: loading…</span>
+        </span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Left: scenario selector -->
+      <aside class="panel">
+        <h2>Scenario</h2>
+        <small>Select which multi‑turn conversation to inspect.</small>
+        <div style="margin-top:10px;">
+          <select id="scenarioSelect"></select>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div class="metric-label">Messages</div>
+          <ol id="scenarioMessages" class="scenario-messages"></ol>
+        </div>
+      </aside>
+
+      <!-- Right: content -->
+      <main class="panel">
+        <h2 id="scenarioTitle">Summary</h2>
+        <small id="scenarioSubtitle">Loading scenario…</small>
+
+        <div class="cards" style="margin-top:12px;">
+          <div class="card" id="cardStandard">
+            <h3>Standard Agent</h3>
+            <div class="metric-label">Total Tokens</div>
+            <div class="metric-value mono" id="stdTokens">–</div>
+            <div class="metric-sub" id="stdTime">Time: –</div>
+            <div class="metric-sub" id="stdCost">Est. cost: –</div>
+          </div>
+
+          <div class="card" id="cardVariable">
+            <h3>Variable-Reuse Agent</h3>
+            <div class="metric-label">Total Tokens</div>
+            <div class="metric-value mono" id="varTokens">–</div>
+            <div class="metric-sub" id="varTime">Time: –</div>
+            <div class="metric-sub" id="varCost">Est. cost: –</div>
+          </div>
+
+          <div class="card">
+            <h3>Improvement</h3>
+            <div class="metric-label">Tokens</div>
+            <div class="metric-value mono metric-good" id="deltaTokens">–</div>
+            <div class="metric-label" style="margin-top:6px;">Response Time</div>
+            <div class="metric-value mono metric-good" id="deltaTime">–</div>
+            <div class="metric-sub" id="deltaCost">Cost savings: –</div>
+          </div>
+        </div>
+
+        <h3 style="margin-top:18px;font-size:0.95rem;">Per‑Turn Comparison</h3>
+        <table id="turnTable">
+          <thead>
+            <tr>
+              <th>Turn</th>
+              <th>Message</th>
+              <th>Std: Time / Tokens</th>
+              <th>Var: Time / Tokens</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 style="margin-top:18px;font-size:0.95rem;">Conversation &amp; Tool Calls</h3>
+        <div id="turnConversations"></div>
+
+        <details>
+          <summary>Show raw stream outputs (getFullOutput)</summary>
+          <pre id="rawJson"></pre>
+        </details>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    async function loadResults() {
+      // Adjust path if you put latest.json elsewhere under docs/
+      const res = await fetch('latest.json');
+      if (!res.ok) {
+        throw new Error('Failed to load results/latest.json');
+      }
+      return res.json();
+    }
+
+    function formatMs(ms) {
+      if (ms > 2000) return (ms / 1000).toFixed(1) + ' s';
+      return ms + ' ms';
+    }
+
+    function formatInt(n) {
+      return n.toLocaleString();
+    }
+
+    function pctImprovement(std, v) {
+      if (!std || std <= 0) return '–';
+      const diff = (std - v) / std * 100;
+      const sign = diff >= 0 ? '-' : '+';
+      return sign + Math.abs(diff).toFixed(1) + '%';
+    }
+
+    function estCost(tokensIn, tokensOut) {
+      const inCost = tokensIn * 0.15 / 1_000_000;
+      const outCost = tokensOut * 0.60 / 1_000_000;
+      return inCost + outCost;
+    }
+
+    function shortMsg(msg) {
+      if (msg.length <= 40) return msg;
+      return msg.slice(0, 37) + '…';
+    }
+
+    function truncateJson(obj, maxLen = 220) {
+      try {
+        const s = JSON.stringify(obj, null, 2);
+        if (s.length <= maxLen) return s;
+        return s.slice(0, maxLen - 1) + '…';
+      } catch {
+        return String(obj);
+      }
+    }
+
+    function renderAgentTurn(label, turn) {
+      const col = document.createElement('div');
+      col.className = 'agent-col';
+
+      const header = document.createElement('div');
+      header.className = 'agent-label';
+      const strong = document.createElement('strong');
+      strong.textContent = label;
+      const meta = document.createElement('span');
+      meta.textContent = formatMs(turn.responseTimeMs) + ' · ' + formatInt(turn.totalTokens) + ' tokens';
+      header.appendChild(strong);
+      header.appendChild(meta);
+      col.appendChild(header);
+
+      const msg = document.createElement('div');
+      msg.className = 'agent-msg';
+      msg.textContent = turn.message || '';
+      col.appendChild(msg);
+
+      if (turn.response) {
+        const resp = document.createElement('div');
+        resp.className = 'agent-response';
+        resp.textContent = turn.response;
+        col.appendChild(resp);
+      }
+
+      const raw = turn.rawStreamOutput || {};
+      const steps = Array.isArray(raw.steps) ? raw.steps : [];
+      const toolItems = [];
+
+      steps.forEach((step, idx) => {
+        const calls = step.toolCalls || [];
+        const results = step.toolResults || [];
+
+        calls.forEach((c) => {
+          toolItems.push({
+            kind: 'call',
+            step: idx + 1,
+            name: c.payload?.toolName,
+            args: c.payload?.args,
+          });
+        });
+
+        results.forEach((r) => {
+          toolItems.push({
+            kind: 'result',
+            step: idx + 1,
+            name: r.payload?.toolName,
+            result: r.payload?.result,
+          });
+        });
+      });
+
+      if (toolItems.length > 0) {
+        const wrap = document.createElement('div');
+        wrap.className = 'tool-list';
+
+        const title = document.createElement('div');
+        title.className = 'tool-list-title';
+        title.textContent = 'Tool calls';
+        wrap.appendChild(title);
+
+        toolItems.forEach((item) => {
+          const row = document.createElement('div');
+          row.className = 'tool-item';
+
+          const name = document.createElement('div');
+          name.className = 'tool-name';
+          name.textContent = (item.kind === 'call' ? 'Call: ' : 'Result: ') + (item.name || 'unknown');
+          row.appendChild(name);
+
+          const metaRow = document.createElement('div');
+          metaRow.className = 'tool-meta';
+          if (item.kind === 'call') {
+            metaRow.textContent = 'step ' + item.step + ' · args: ' + truncateJson(item.args ?? {});
+          } else {
+            metaRow.textContent = 'step ' + item.step + ' · result: ' + truncateJson(item.result ?? {});
+          }
+          row.appendChild(metaRow);
+
+          wrap.appendChild(row);
+        });
+
+        col.appendChild(wrap);
+      }
+
+      return col;
+    }
+
+    function onScenarioChange(data, idx) {
+      const entry = data.scenarios[idx];
+      const scenario = entry.scenario;
+      const std = entry.standard;
+      const variable = entry.variable;
+
+      document.getElementById('scenarioTitle').textContent = scenario.name;
+      document.getElementById('scenarioSubtitle').textContent =
+        `${scenario.messages.length} turns · standard vs variable‑reuse`;
+
+      // Messages list
+      const msgList = document.getElementById('scenarioMessages');
+      msgList.innerHTML = '';
+      scenario.messages.forEach((m, i) => {
+        const li = document.createElement('li');
+        li.textContent = m;
+        msgList.appendChild(li);
+      });
+
+      // Totals
+      const stdTot = std.totals;
+      const varTot = variable.totals;
+
+      const stdTokens = stdTot.totalTokens;
+      const varTokens = varTot.totalTokens;
+
+      const stdTime = stdTot.responseTimeMs;
+      const varTime = varTot.responseTimeMs;
+
+      const stdCost = estCost(stdTot.inputTokens, stdTot.outputTokens);
+      const varCost = estCost(varTot.inputTokens, varTot.outputTokens);
+
+      document.getElementById('stdTokens').textContent = formatInt(stdTokens);
+      document.getElementById('stdTime').textContent = 'Time: ' + formatMs(stdTime);
+      document.getElementById('stdCost').textContent = 'Est. cost: $' + stdCost.toFixed(6);
+
+      document.getElementById('varTokens').textContent = formatInt(varTokens);
+      document.getElementById('varTime').textContent = 'Time: ' + formatMs(varTime);
+      document.getElementById('varCost').textContent = 'Est. cost: $' + varCost.toFixed(6);
+
+      document.getElementById('deltaTokens').textContent =
+        pctImprovement(stdTokens, varTokens);
+      document.getElementById('deltaTime').textContent =
+        pctImprovement(stdTime, varTime);
+
+      const costDeltaPct = pctImprovement(stdCost, varCost);
+      document.getElementById('deltaCost').textContent = 'Cost savings: ' + costDeltaPct;
+
+      // Per-turn table
+      const tbody = document.querySelector('#turnTable tbody');
+      tbody.innerHTML = '';
+      for (let i = 0; i < std.turns.length; i++) {
+        const sTurn = std.turns[i];
+        const vTurn = variable.turns[i];
+
+        const tr = document.createElement('tr');
+
+        const tdTurn = document.createElement('td');
+        tdTurn.textContent = sTurn.turn;
+        tr.appendChild(tdTurn);
+
+        const tdMsg = document.createElement('td');
+        tdMsg.textContent = shortMsg(sTurn.message);
+        tr.appendChild(tdMsg);
+
+        const tdStd = document.createElement('td');
+        tdStd.innerHTML = `<span class="mono">${formatMs(sTurn.responseTimeMs)}</span> · <span class="mono">${formatInt(sTurn.totalTokens)}</span>`;
+        tr.appendChild(tdStd);
+
+        const tdVar = document.createElement('td');
+        tdVar.innerHTML = `<span class="mono">${formatMs(vTurn.responseTimeMs)}</span> · <span class="mono">${formatInt(vTurn.totalTokens)}</span>`;
+        tr.appendChild(tdVar);
+
+        tbody.appendChild(tr);
+      }
+
+      // Side-by-side conversation & tool calls
+      const convRoot = document.getElementById('turnConversations');
+      convRoot.innerHTML = '';
+      for (let i = 0; i < std.turns.length; i++) {
+        const sTurn = std.turns[i];
+        const vTurn = variable.turns[i];
+
+        const block = document.createElement('div');
+        block.className = 'turn-block';
+
+        const heading = document.createElement('div');
+        heading.className = 'turn-heading';
+        const left = document.createElement('div');
+        left.textContent = `Turn ${sTurn.turn}: ${shortMsg(sTurn.message)}`;
+        const right = document.createElement('div');
+        right.textContent = `Std: ${formatMs(sTurn.responseTimeMs)}, Var: ${formatMs(vTurn.responseTimeMs)}`;
+        heading.appendChild(left);
+        heading.appendChild(right);
+        block.appendChild(heading);
+
+        const grid = document.createElement('div');
+        grid.className = 'conv-grid';
+        grid.appendChild(renderAgentTurn('Standard Agent', sTurn));
+        grid.appendChild(renderAgentTurn('Variable-Reuse Agent', vTurn));
+        block.appendChild(grid);
+
+        convRoot.appendChild(block);
+      }
+
+      // Raw JSON (for debugging / explanation)
+      const raw = {
+        scenario,
+        standard: std,
+        variable,
+      };
+      document.getElementById('rawJson').textContent =
+        JSON.stringify(raw, null, 2);
+    }
+
+    (async function init() {
+      try {
+        const data = await loadResults();
+
+        // Timestamp badge
+        const ts = new Date(data.timestamp);
+        const tsLabel = isNaN(ts.getTime())
+          ? data.timestamp
+          : ts.toLocaleString();
+        const tsSpan = document.getElementById('runTimestamp').querySelector('span:last-child');
+        tsSpan.textContent = 'Last run: ' + tsLabel;
+
+        // Scenario select
+        const select = document.getElementById('scenarioSelect');
+        data.scenarios.forEach((entry, idx) => {
+          const opt = document.createElement('option');
+          opt.value = String(idx);
+          opt.textContent = entry.scenario.name;
+          select.appendChild(opt);
+        });
+
+        select.addEventListener('change', () =>
+          onScenarioChange(data, Number(select.value))
+        );
+
+        // Initialize with first scenario
+        if (data.scenarios.length > 0) {
+          select.value = '0';
+          onScenarioChange(data, 0);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Failed to load benchmark results. Check console for details.');
+      }
+    })();
+  </script>
+</body>
+</html>
